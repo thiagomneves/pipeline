@@ -10,7 +10,7 @@ pipeline {
 
                 checkoutGitRepository()
                 script{
-                    GIT_COMMIT_HASH = bat (script: "git log -n 1 --pretty=format:'%H'", returnStdout: true)
+                    GIT_COMMIT_HASH = getRevision()
                 }
             }
 
@@ -62,9 +62,20 @@ def pushImageStep(){
 
     bat "docker build -t ${JOB_NAME} ."
     bat "docker login docker.io"
-    bat "docker tag \$(docker images ${JOB_NAME} | awk 'NR > 1 { print \$3 }' ) thiagomneves/swapi:${JOB_NAME}-"+GIT_COMMIT_HASH
+    bat "docker tag ${getImageId()} thiagomneves/swapi:${JOB_NAME}-"+GIT_COMMIT_HASH
     bat "docker push thiagomneves/swapi:${JOB_NAME}-"+GIT_COMMIT_HASH
 
+}
+
+def getImageId(){
+    def cmdReturn = bat(returnStdout: true, script: "docker images ${JOB_NAME} | awk \"NR > 1 { print \$3 } \" ").trim()
+    return cmdReturn.readLines().drop(1).join(" ")
+    
+}
+
+def getRevision() {
+    def revReturn = bat(returnStdout: true, script: "git rev-parse HEAD").trim()
+    return revReturn.readLines().drop(1).join(" ")
 }
 
 def replaceDeploymentFile(){
@@ -87,7 +98,7 @@ def deployKubernetePod(){
 }
 
 def removeImagesDocker(){
-    bat "docker rmi \$(docker images ${JOB_NAME} | awk 'NR > 1 { print \$3 }' ) --force"
+    bat "docker rmi ${getImageId()} --force"
 }
 
 return this
