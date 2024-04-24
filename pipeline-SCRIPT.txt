@@ -10,7 +10,7 @@ pipeline {
 
                 checkoutGitRepository()
                 script{
-                    GIT_COMMIT_HASH = sh (script: "git log -n 1 --pretty=format:'%H'", returnStdout: true)
+                    GIT_COMMIT_HASH = bat (script: "git log -n 1 --pretty=format:'%H'", returnStdout: true)
                 }
             }
 
@@ -47,23 +47,23 @@ pipeline {
 
 
 def checkoutGitRepository(){
-    git branch: env.BRANCH_NAME.replaceAll('origin/',''),
+    git branch: 'sem_config_server',
             credentialsId: 'git',
-            url: "git@github.com:<SEUREPOSITORIOGITHUB>/${JOB_NAME}.git"
+            url: "git@github.com:thiagomneves/${JOB_NAME}.git"
 
 }
 
 def runningMavenTest(){
-    sh "mvn test"
+    bat "mvn test"
 }
 
 
 def pushImageStep(){
 
-    sh "docker build -t ${JOB_NAME} ."
-    sh "docker login docker.io"
-    sh "docker tag \$(docker images ${JOB_NAME} | awk 'NR > 1 { print \$3 }' ) <SUACONTANODOCKERHUB>/<SEUREPOSITORIONODOCKERHUB>:${JOB_NAME}-"+GIT_COMMIT_HASH
-    sh "docker push :${JOB_NAME}-"+GIT_COMMIT_HASH
+    bat "docker build -t ${JOB_NAME} ."
+    bat "docker login docker.io"
+    bat "docker tag \$(docker images ${JOB_NAME} | awk 'NR > 1 { print \$3 }' ) thiagomneves/swapi:${JOB_NAME}-"+GIT_COMMIT_HASH
+    bat "docker push thiagomneves/swapi:${JOB_NAME}-"+GIT_COMMIT_HASH
 
 }
 
@@ -72,8 +72,8 @@ def replaceDeploymentFile(){
     readContent = readFile 'k8s/deployment.yaml'
                     
                
-    readContent = readContent.replaceAll('\\$dck-accountid',"<SUACONTANODOCKERHUB>")
-    readContent = readContent.replaceAll('\\$dck-repository',"<SEUREPOSITORIONODOCKERHUB>")
+    readContent = readContent.replaceAll('\\$dck-accountid',"thiagomneves")
+    readContent = readContent.replaceAll('\\$dck-repository',"swapi")
     readContent = readContent.replaceAll('\\$artifactory',"${JOB_NAME}")
     readContent = readContent.replaceAll('\\$githash',GIT_COMMIT_HASH)
     writeFile file: "k8s/deployment.yaml", text: "${readContent}"
@@ -82,12 +82,12 @@ def replaceDeploymentFile(){
 
 def deployKubernetePod(){
     dir("k8s") {
-        sh 'kubectl apply -k .'
+        bat 'kubectl apply -k .'
     }
 }
 
 def removeImagesDocker(){
-    sh "docker rmi \$(docker images ${JOB_NAME} | awk 'NR > 1 { print \$3 }' ) --force"
+    bat "docker rmi \$(docker images ${JOB_NAME} | awk 'NR > 1 { print \$3 }' ) --force"
 }
 
 return this
